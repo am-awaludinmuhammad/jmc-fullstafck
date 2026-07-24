@@ -3,7 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { buttonVariants } from "@/components/ui/button-variants"
-import { dataPegawai } from "@/data/pegawai"
+import { prisma } from "@/lib/prisma"
 import { formatDateID, calculateAge } from "@/lib/format"
 
 function DataGridItem({ label, children }: { label: string; children: React.ReactNode }) {
@@ -21,7 +21,15 @@ export default async function PegawaiDetailPage({
   params: Promise<{ nip: string }>
 }) {
   const { nip } = await params
-  const employee = dataPegawai.find((item) => item.nip === nip)
+  const employee = await prisma.employee.findFirst({
+    where: { nip, deletedAt: null },
+    include: {
+      position: true,
+      department: true,
+      educations: { orderBy: { sortOrder: "asc" } },
+      district: { include: { regency: { include: { province: true } } } },
+    },
+  })
 
   if (!employee) {
     notFound()
@@ -37,6 +45,7 @@ export default async function PegawaiDetailPage({
           <div className="flex items-center gap-4">
             {employee.photoPath && (
               <Image
+                unoptimized
                 src={employee.photoPath}
                 alt={employee.name}
                 width={100}
@@ -56,12 +65,15 @@ export default async function PegawaiDetailPage({
             <DataGridItem label="Tempat Lahir">{employee.birthPlace}</DataGridItem>
             <DataGridItem label="Tanggal Lahir">{formatDateID(employee.birthDate)}</DataGridItem>
             <DataGridItem label="Usia">{calculateAge(employee.birthDate)} tahun</DataGridItem>
+            <DataGridItem label="Jenis Kelamin">{employee.gender}</DataGridItem>
             <DataGridItem label="Pendidikan">
-              {employee.educations.map((edu) => (
-                <div key={edu.id}>
-                  {edu.educationLevel} / {edu.schoolName} / {edu.graduationYear}
-                </div>
-              ))}
+              {employee.educations.length === 0
+                ? "-"
+                : employee.educations.map((edu) => (
+                    <div key={edu.id}>
+                      {edu.educationLevel} / {edu.schoolName} / {edu.graduationYear}
+                    </div>
+                  ))}
             </DataGridItem>
           </div>
 
@@ -69,12 +81,14 @@ export default async function PegawaiDetailPage({
 
           <div className="grid grid-cols-3 gap-4">
             <DataGridItem label="Kecamatan">{employee.district.name}</DataGridItem>
-            <DataGridItem label="Kabupaten">{employee.regency.name}</DataGridItem>
-            <DataGridItem label="Provinsi">{employee.province.name}</DataGridItem>
+            <DataGridItem label="Kabupaten">{employee.district.regency.name}</DataGridItem>
+            <DataGridItem label="Provinsi">{employee.district.regency.province.name}</DataGridItem>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <DataGridItem label="Status Pernikahan">{employee.maritalStatus}</DataGridItem>
+            <DataGridItem label="Status Pernikahan">
+              {employee.maritalStatus === "kawin" ? "Kawin" : "Tidak Kawin"}
+            </DataGridItem>
             <DataGridItem label="Jumlah Anak">{employee.childrenCount}</DataGridItem>
           </div>
         </div>
@@ -90,6 +104,8 @@ export default async function PegawaiDetailPage({
             <DataGridItem label="Jabatan">{employee.position.name}</DataGridItem>
             <DataGridItem label="Departemen">{employee.department.name}</DataGridItem>
           </div>
+          <DataGridItem label="Status Kontrak">{employee.employmentType.toUpperCase()}</DataGridItem>
+          <DataGridItem label="Jarak Rumah - Kantor">{Number(employee.distanceKm)} km</DataGridItem>
           <DataGridItem label="Status">
             {employee.status === "active" ? "Aktif" : "Tidak Aktif"}
           </DataGridItem>

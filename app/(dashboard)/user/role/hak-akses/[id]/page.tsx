@@ -1,18 +1,10 @@
 import { notFound } from "next/navigation"
-import { CircleCheck, CircleX } from "lucide-react"
 
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-
-import { roles, rolePermissions } from "@/data/role"
+import { Textarea } from "@/components/ui/textarea"
+import { HakAksesTable } from "@/components/role/HakAksesTable"
+import { prisma } from "@/lib/prisma"
 
 export default async function HakAksesPage({
   params,
@@ -20,11 +12,21 @@ export default async function HakAksesPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const role = roles.find((item) => String(item.id) === id)
+  const roleId = Number(id)
+
+  const role = Number.isNaN(roleId)
+    ? null
+    : await prisma.role.findUnique({ where: { id: roleId } })
 
   if (!role) {
     notFound()
   }
+
+  const rolePermissions = await prisma.rolePermission.findMany({
+    where: { roleId: role.id },
+    include: { module: true },
+    orderBy: { module: { sortOrder: "asc" } },
+  })
 
   return (
     <div className="grid gap-4">
@@ -36,50 +38,13 @@ export default async function HakAksesPage({
           </div>
           <div className="grid gap-1.5">
             <Label>Deskripsi</Label>
-            <Input value={role.description} readOnly disabled />
+            <Textarea value={role.description} readOnly disabled rows={3} />
           </div>
         </div>
       </div>
 
       <div className="bg-card rounded-lg border shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10">No</TableHead>
-              <TableHead>Modul/Fitur</TableHead>
-              <TableHead className="text-center">Akses</TableHead>
-              <TableHead className="text-center">Create</TableHead>
-              <TableHead>Read</TableHead>
-              <TableHead>Update</TableHead>
-              <TableHead>Delete</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rolePermissions.map((item, index) => (
-              <TableRow key={item.id}>
-                <TableCell className="text-center">{index + 1}</TableCell>
-                <TableCell>{item.module.name}</TableCell>
-                <TableCell className="text-center">
-                  {item.canAccess ? (
-                    <CircleCheck className="inline size-4 text-green-600" />
-                  ) : (
-                    <CircleX className="inline size-4 text-destructive" />
-                  )}
-                </TableCell>
-                <TableCell className="text-center">
-                  {item.canCreate ? (
-                    <CircleCheck className="inline size-4 text-green-600" />
-                  ) : (
-                    <CircleX className="inline size-4 text-destructive" />
-                  )}
-                </TableCell>
-                <TableCell>{item.readScope}</TableCell>
-                <TableCell>{item.updateScope}</TableCell>
-                <TableCell>{item.deleteScope}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <HakAksesTable permissions={rolePermissions} />
       </div>
     </div>
   )

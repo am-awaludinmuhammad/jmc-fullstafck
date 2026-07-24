@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation"
 
 import { PegawaiForm } from "@/components/pegawai/PegawaiForm"
-import { dataPegawai } from "@/data/pegawai"
+import { prisma } from "@/lib/prisma"
 
 export default async function EditPegawaiPage({
   params,
@@ -9,11 +9,28 @@ export default async function EditPegawaiPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const employee = dataPegawai.find((item) => item.nip === id)
+
+  const [employee, positions, departments] = await Promise.all([
+    prisma.employee.findFirst({
+      where: { nip: id, deletedAt: null },
+      include: {
+        educations: { orderBy: { sortOrder: "asc" } },
+        district: { include: { regency: { include: { province: true } } } },
+      },
+    }),
+    prisma.position.findMany({ orderBy: { name: "asc" } }),
+    prisma.department.findMany({ orderBy: { name: "asc" } }),
+  ])
 
   if (!employee) {
     notFound()
   }
 
-  return <PegawaiForm employee={employee} />
+  return (
+    <PegawaiForm
+      employee={{ ...employee, distanceKm: Number(employee.distanceKm) }}
+      positions={positions}
+      departments={departments}
+    />
+  )
 }
