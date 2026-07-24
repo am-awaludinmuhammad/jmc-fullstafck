@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/AppSidebar"
+import { LogoutButton } from "@/components/LogoutButton"
 import { cn } from "@/lib/utils"
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <div>
                 <SidebarTrigger />
               </div>
+              <LogoutButton />
             </header>
 
             {/* Main Content */}
