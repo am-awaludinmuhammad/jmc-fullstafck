@@ -69,7 +69,7 @@ export function AppSidebar() {
                         <CollapsibleTrigger asChild>
                           <SidebarMenuButton
                             className={cn(
-                              "text-white hover:bg-brand-600 hover:text-white py-5",
+                              "text-slate-300 hover:bg-brand-600 hover:text-white py-5",
                               isParentActive && "bg-brand-500 text-white hover:bg-brand-500"
                             )}
                           >
@@ -87,8 +87,8 @@ export function AppSidebar() {
                                   <SidebarMenuSubButton
                                     asChild
                                     className={cn(
-                                      "text-white hover:bg-brand-600 hover:text-white",
-                                      isActive && "bg-brand-500 text-white hover:bg-brand-500"
+                                      "text-slate-400 hover:bg-transparent hover:text-white",
+                                      isActive && "bg-transparent text-white hover:bg-transparent"
                                     )}
                                   >
                                     <Link href={child.url}>
@@ -108,7 +108,7 @@ export function AppSidebar() {
                 const isActive = isActivePath(pathname, item.url);
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild className="hover:bg-brand-600 text-white py-5">
+                    <SidebarMenuButton asChild className="text-slate-300 hover:bg-brand-600 hover:text-white py-5">
                       <Link href={item.url ?? "#"}
                         className={cn(
                           "flex items-center",
