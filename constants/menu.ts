@@ -4,6 +4,7 @@ import {
   Database,
   Users,
   History,
+  CalendarCheck,
   type LucideIcon,
 } from "lucide-react"
 
@@ -29,6 +30,11 @@ export const menuItems: MenuItem[] = [
     title: "Data Pegawai",
     icon: User,
     url: "/pegawai",
+  },
+  {
+    title: "Presensi",
+    icon: CalendarCheck,
+    url: "/presensi",
   },
   {
     title: "Tunjangan",

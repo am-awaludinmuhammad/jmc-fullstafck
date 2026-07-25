@@ -373,13 +373,13 @@ model AttendanceSummary {
   employeeId       Int      @map("employee_id")
   periodYear       Int      @map("period_year")
   periodMonth      Int      @map("period_month")
-  hadir            Int
-  cuti             Int
-  kuotaCuti        Int      @map("kuota_cuti")
-  izin             Int
-  kuotaIzin        Int      @map("kuota_izin")
-  unpaidLeave      Int      @map("unpaid_leave")
-  kuotaUnpaidLeave Int      @map("kuota_unpaid_leave")
+  hadir            Decimal  @db.Decimal(4, 1)
+  cuti             Decimal  @db.Decimal(4, 1)
+  kuotaCuti        Decimal  @map("kuota_cuti") @db.Decimal(4, 1)
+  izin             Decimal  @db.Decimal(4, 1)
+  kuotaIzin        Decimal  @map("kuota_izin") @db.Decimal(4, 1)
+  unpaidLeave      Decimal  @map("unpaid_leave") @db.Decimal(4, 1)
+  kuotaUnpaidLeave Decimal  @map("kuota_unpaid_leave") @db.Decimal(4, 1)
   statusHadir      String   @map("status_hadir")
   calculatedAt     DateTime @map("calculated_at")
   createdAt        DateTime @default(now()) @map("created_at")
@@ -439,7 +439,7 @@ model TransportAllowanceDetail {
   baseFare                   Decimal  @map("base_fare") @db.Decimal(10, 2)
   originalKm                 Decimal  @map("original_km") @db.Decimal(6, 2)
   roundedKm                  Decimal  @map("rounded_km") @db.Decimal(6, 2)
-  attendanceDays             Int      @map("attendance_days")
+  attendanceDays             Decimal  @map("attendance_days") @db.Decimal(4, 1)
   nominal                    Decimal  @db.Decimal(14, 2)
   eligibilityStatus          String   @map("eligibility_status")
   calculationNote            String?  @map("calculation_note") @db.Text

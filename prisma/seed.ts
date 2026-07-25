@@ -1,6 +1,12 @@
 import "dotenv/config";
 import { prisma } from "../lib/prisma";
 import { hashPassword } from "../lib/auth/password";
+import {
+  KUOTA_CUTI_PER_BULAN,
+  KUOTA_IZIN_PER_BULAN,
+  KUOTA_UNPAID_LEAVE_PER_BULAN,
+  MINIMAL_HARI_HADIR_TERPENUHI,
+} from "../lib/attendance/constants";
 
 type ScopeCode = "no" | "all" | "own";
 
@@ -132,7 +138,7 @@ async function main() {
     )
   );
 
- await Promise.all(
+  const positions = await Promise.all(
     [
       { code: "MGR", name: "Manager", positionType: "manager" as const },
       { code: "STF", name: "Staf", positionType: "staf" as const },
@@ -145,6 +151,9 @@ async function main() {
       })
     )
   );
+
+  const positionByCode = Object.fromEntries(positions.map((p) => [p.code, p]));
+  const departmentByCode = Object.fromEntries(departments.map((d) => [d.code, d]));
 
   const defaultPassword = await hashPassword("Password123!");
 
@@ -176,11 +185,162 @@ async function main() {
     });
   }
 
+  const district = await prisma.district.findFirst();
+
+  let seedEmployees: { nip: string }[] = [];
+  let attendanceSummaryCount = 0;
+  let transportSettingCreated = false;
+
+  if (!district) {
+    console.warn(
+      "Skip seed pegawai/tunjangan: belum ada data wilayah (Province/Regency/District). Import data wilayah dulu, lalu jalankan ulang seed."
+    );
+  } else {
+    const employeeSeeds = [
+      {
+        nip: "90000001",
+        name: "Budi Santoso",
+        email: "budi.santoso@example.com",
+        phone: "+6281300000001",
+        employmentType: "pkwtt" as const,
+        distanceKm: 12.5,
+        hadir: 22,
+        note: "Pegawai tetap, jarak normal, hari kerja cukup -> berhak tunjangan",
+      },
+      {
+        nip: "90000002",
+        name: "Siti Aminah",
+        email: "siti.aminah@example.com",
+        phone: "+6281300000002",
+        employmentType: "pkwtt" as const,
+        distanceKm: 30,
+        hadir: 20,
+        note: "Jarak melebihi maksimal setting -> km dipotong ke batas maksimal",
+      },
+      {
+        nip: "90000003",
+        name: "Joko Susilo",
+        email: "joko.susilo@example.com",
+        phone: "+6281300000003",
+        employmentType: "pkwtt" as const,
+        distanceKm: 4,
+        hadir: 25,
+        note: "Jarak di bawah minimal setting -> tidak berhak tunjangan",
+      },
+      {
+        nip: "90000004",
+        name: "Rina Wulandari",
+        email: "rina.wulandari@example.com",
+        phone: "+6281300000004",
+        employmentType: "pkwt" as const,
+        distanceKm: 10,
+        hadir: 25,
+        note: "Bukan pegawai tetap -> tidak berhak tunjangan",
+      },
+      {
+        nip: "90000005",
+        name: "Agus Salim",
+        email: "agus.salim@example.com",
+        phone: "+6281300000005",
+        employmentType: "pkwtt" as const,
+        distanceKm: 8,
+        hadir: 15,
+        note: "Hari masuk kerja di bawah minimal -> tidak berhak tunjangan",
+      },
+    ];
+
+    for (const seed of employeeSeeds) {
+      await prisma.employee.upsert({
+        where: { nip: seed.nip },
+        update: {
+          name: seed.name,
+          employmentType: seed.employmentType,
+          distanceKm: seed.distanceKm,
+        },
+        create: {
+          nip: seed.nip,
+          name: seed.name,
+          email: seed.email,
+          phone: seed.phone,
+          birthPlace: "Yogyakarta",
+          birthDate: new Date("1995-01-01"),
+          maritalStatus: "tidak kawin",
+          childrenCount: 0,
+          joinedAt: new Date("2024-01-01"),
+          positionId: positionByCode["STF"].id,
+          departmentId: departmentByCode["HRD"].id,
+          employmentType: seed.employmentType,
+          gender: "Laki-laki",
+          distanceKm: seed.distanceKm,
+          districtId: district.id,
+          fullAddress: "Alamat data uji coba, diisi seeder",
+          status: "active",
+        },
+      });
+    }
+
+    seedEmployees = employeeSeeds;
+
+    const now = new Date();
+    const periodYear = now.getFullYear();
+    const periodMonth = now.getMonth() + 1;
+
+    for (const seed of employeeSeeds) {
+      const employee = await prisma.employee.findUniqueOrThrow({ where: { nip: seed.nip } });
+
+      await prisma.attendanceSummary.upsert({
+        where: {
+          employeeId_periodYear_periodMonth: {
+            employeeId: employee.id,
+            periodYear,
+            periodMonth,
+          },
+        },
+        update: {
+          hadir: seed.hadir,
+          statusHadir: seed.hadir >= MINIMAL_HARI_HADIR_TERPENUHI ? "Terpenuhi" : "Tidak Terpenuhi",
+        },
+        create: {
+          employeeId: employee.id,
+          periodYear,
+          periodMonth,
+          hadir: seed.hadir,
+          cuti: 0,
+          kuotaCuti: KUOTA_CUTI_PER_BULAN,
+          izin: 0,
+          kuotaIzin: KUOTA_IZIN_PER_BULAN,
+          unpaidLeave: 0,
+          kuotaUnpaidLeave: KUOTA_UNPAID_LEAVE_PER_BULAN,
+          statusHadir: seed.hadir >= MINIMAL_HARI_HADIR_TERPENUHI ? "Terpenuhi" : "Tidak Terpenuhi",
+          calculatedAt: new Date(),
+        },
+      });
+      attendanceSummaryCount += 1;
+    }
+
+    const existingSetting = await prisma.transportAllowanceSetting.findFirst();
+    if (!existingSetting) {
+      await prisma.transportAllowanceSetting.create({
+        data: {
+          baseFare: 15000,
+          effectiveStart: new Date("2026-01-01"),
+          minKm: 5,
+          maxKm: 25,
+          isActive: true,
+        },
+      });
+      transportSettingCreated = true;
+    }
+  }
+
   console.log("Seed selesai:", {
     roles: roles.length,
     modules: modules.length,
     departments: departments.length,
     users: seedUsers.length,
+    employeesUntukTunjangan: seedEmployees.length,
+    attendanceSummary: attendanceSummaryCount,
+    transportSettingCreated,
   });
 }
 

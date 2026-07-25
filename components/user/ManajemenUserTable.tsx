@@ -279,7 +279,7 @@ function UserFormDialog({
                     className="block w-full text-left px-3 py-2 text-sm hover:bg-accent"
                     onClick={() => selectEmployee(option)}
                   >
-                    {option.name} — {option.nip}
+                    {option.name} ({option.nip})
                   </button>
                 ))}
               </div>
